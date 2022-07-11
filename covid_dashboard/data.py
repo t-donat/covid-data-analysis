@@ -10,11 +10,11 @@ import pandas as pd
 from covid_dashboard.utils import change_date_format_to_dmy, format_date_string
 
 
-def load_population_data(population_url, countries_of_best):
+def load_population_data(population_url, supported_countries):
 
     target_filepath = os.path.join(os.path.dirname(__file__),
                                    "config",
-                                   "populations_of_best_countries.csv")
+                                   "populations_of_supported_countries.csv")
 
     # print(target_filepath)
 
@@ -44,19 +44,19 @@ def load_population_data(population_url, countries_of_best):
         reduced_popuation_data.rename(index={"Czechia": "Czech Republic"},
                                       inplace=True)
 
-        best_population_data = reduced_popuation_data.loc[reduced_popuation_data.index.isin(countries_of_best)]
-        best_population_data.loc[:, "PopTotal"] = pd.Series(best_population_data.loc[:, "PopTotal"] * 1000, dtype=int)
+        supported_population_data = reduced_popuation_data.loc[reduced_popuation_data.index.isin(supported_countries)]
+        supported_population_data.loc[:, "PopTotal"] = pd.Series(supported_population_data.loc[:, "PopTotal"] * 1000, dtype=int)
 
         # drop all other columns except for those three
-        best_population_data = best_population_data.loc[:, ["PopMale", "PopFemale", "PopTotal"]]
+        supported_population_data = supported_population_data.loc[:, ["PopMale", "PopFemale", "PopTotal"]]
 
         # save .csv to avoid download and computational load on next run
-        best_population_data.to_csv(target_filepath)
+        supported_population_data.to_csv(target_filepath)
 
-        return best_population_data
+        return supported_population_data
 
 
-def load_infection_data(infections_url, countries_of_best):
+def load_infection_data(infections_url, supported_countries):
 
     infection_data = pd.read_csv(infections_url)
     infection_data.drop(columns=["Lat", "Long"], inplace=True)
@@ -65,16 +65,16 @@ def load_infection_data(infections_url, countries_of_best):
                                    "Russia": "Russian Federation",
                                    "Czechia": "Czech Republic"},
                                   inplace=True)
-    best_infection_data = grouped_infection_data.loc[grouped_infection_data.index.isin(countries_of_best)]
+    infection_data = grouped_infection_data.loc[grouped_infection_data.index.isin(supported_countries)]
 
-    sorted_infection_dates = sorted([change_date_format_to_dmy(date) for date in best_infection_data.columns],
+    sorted_infection_dates = sorted([change_date_format_to_dmy(date) for date in infection_data.columns],
                                     key=itemgetter(6, 7, 3, 4, 0, 1))
-    best_infection_data.columns = sorted_infection_dates
+    infection_data.columns = sorted_infection_dates
 
-    return best_infection_data
+    return infection_data
 
 
-def load_recovery_data(recoveries_url, countries_of_best):
+def load_recovery_data(recoveries_url, supported_countries):
 
     recovery_data = pd.read_csv(recoveries_url)
     recovery_data.drop(columns=["Lat", "Long"], inplace=True)
@@ -83,17 +83,17 @@ def load_recovery_data(recoveries_url, countries_of_best):
                                   "Russia": "Russian Federation",
                                   "Czechia": "Czech Republic"},
                                  inplace=True)
-    best_recovery_data = grouped_recovery_data.loc[grouped_recovery_data.index.isin(countries_of_best)]
+    recovery_data = grouped_recovery_data.loc[grouped_recovery_data.index.isin(supported_countries)]
 
-    sorted_recovery_dates = sorted([change_date_format_to_dmy(date) for date in best_recovery_data.columns],
+    sorted_recovery_dates = sorted([change_date_format_to_dmy(date) for date in recovery_data.columns],
                                    key=itemgetter(6, 7, 3, 4, 0, 1))
 
-    best_recovery_data.columns = sorted_recovery_dates
+    recovery_data.columns = sorted_recovery_dates
 
-    return best_recovery_data
+    return recovery_data
 
 
-def load_vaccination_data(vaccinations_url, countries_of_best):
+def load_vaccination_data(vaccinations_url, supported_countries):
 
     vaccination_data = pd.read_csv(vaccinations_url)
     vaccination_data.loc[vaccination_data.loc[:, "Country_Region"] == "Czechia", "Country_Region"] = 'Czech Republic'
@@ -101,13 +101,13 @@ def load_vaccination_data(vaccinations_url, countries_of_best):
         vaccination_data.loc[:, "Country_Region"] == "Moldova", "Country_Region"] = 'Republic of Moldova'
     vaccination_data.loc[vaccination_data.loc[:, "Country_Region"] == "Russia", "Country_Region"] = 'Russian Federation'
 
-    reduced_vaccination_data = vaccination_data.loc[vaccination_data.loc[:, "Country_Region"].isin(countries_of_best)]
+    reduced_vaccination_data = vaccination_data.loc[vaccination_data.loc[:, "Country_Region"].isin(supported_countries)]
     reduced_vaccination_data = reduced_vaccination_data.groupby(["Country_Region", "Date"]).sum()
 
     partial_vaccination_data_frames = []
     full_vaccination_data_frames = []
 
-    for country in countries_of_best:
+    for country in supported_countries:
         country_data = reduced_vaccination_data.loc[reduced_vaccination_data.index.get_level_values(0) == country]
 
         country_dates = [format_date_string(date) for date in country_data.index.get_level_values(1)]
@@ -129,16 +129,16 @@ def load_vaccination_data(vaccinations_url, countries_of_best):
         country_full_vaccinations = pd.DataFrame(full_vaccinations)
         full_vaccination_data_frames.append(country_full_vaccinations)
 
-    best_partial_vaccination_data = pd.concat(partial_vaccination_data_frames, ignore_index=True)
-    best_full_vaccination_data = pd.concat(full_vaccination_data_frames, ignore_index=True)
-    sorted_dates = sorted(best_partial_vaccination_data.columns, key=itemgetter(6, 7, 3, 4, 0, 1))
+    partial_vaccination_data = pd.concat(partial_vaccination_data_frames, ignore_index=True)
+    full_vaccination_data = pd.concat(full_vaccination_data_frames, ignore_index=True)
+    sorted_dates = sorted(partial_vaccination_data.columns, key=itemgetter(6, 7, 3, 4, 0, 1))
 
-    best_partial_vaccination_data = best_partial_vaccination_data.loc[:, sorted_dates]
-    best_partial_vaccination_data = best_partial_vaccination_data.groupby("Country/Region").sum()
-    best_partial_vaccination_data = best_partial_vaccination_data.astype(int)
+    partial_vaccination_data = partial_vaccination_data.loc[:, sorted_dates]
+    partial_vaccination_data = partial_vaccination_data.groupby("Country/Region").sum()
+    partial_vaccination_data = partial_vaccination_data.astype(int)
 
-    best_full_vaccination_data = best_full_vaccination_data.loc[:, sorted_dates]
-    best_full_vaccination_data = best_full_vaccination_data.groupby("Country/Region").sum()
-    best_full_vaccination_data = best_full_vaccination_data.astype(int)
+    full_vaccination_data = full_vaccination_data.loc[:, sorted_dates]
+    full_vaccination_data = full_vaccination_data.groupby("Country/Region").sum()
+    full_vaccination_data = full_vaccination_data.astype(int)
 
-    return best_partial_vaccination_data, best_full_vaccination_data
+    return partial_vaccination_data, full_vaccination_data

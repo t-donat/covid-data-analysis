@@ -98,7 +98,7 @@ def create_app():
     recoveries_url = config["recoveries"]["data_url"]
     vaccinations_url = config["vaccinations"]["data_url"]
 
-    with open(os.path.join(config_directory, "countries_of_best.json"), "r") as country_file:
+    with open(os.path.join(config_directory, "supported_countries.json"), "r") as country_file:
         contents = json.load(country_file)
 
     supported_countries = contents["countries"]
