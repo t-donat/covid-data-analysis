@@ -1,0 +1,6 @@
+pandas
+configparser
+dash
+dash_bootstrap_components
+plotly
+ipython
