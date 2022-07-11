@@ -1,6 +1,9 @@
 import os
 from operator import itemgetter
 from collections import OrderedDict
+from io import BytesIO
+from zipfile import ZipFile
+from urllib.request import urlopen
 
 import pandas as pd
 
@@ -19,16 +22,35 @@ def load_population_data(population_url, countries_of_best):
         return pd.read_csv(target_filepath, index_col="Location")
 
     else:
-        population_data = pd.read_csv(population_url)
+        print("Population .csv not found, downloading and parsing data. This may take some time")
+
+        resp = urlopen(population_url)
+
+        with ZipFile(BytesIO(resp.read())) as zipfile:
+
+            csv_file_list = [filename for filename in zipfile.namelist() if ".csv" in filename]
+
+            if len(csv_file_list) != 1:
+                raise FileNotFoundError("Problem with .csv file in zip archive!")
+
+            csv_file_name = csv_file_list[0]
+
+            with zipfile.open(csv_file_name) as csv_data_file:
+                population_data = pd.read_csv(csv_data_file)
 
         reduced_popuation_data = population_data[
-            (population_data["Time"] == 2020) & (population_data["Variant"] == "Medium")]
+            (population_data["Time"] == 2021) & (population_data["Variant"] == "Medium")]
         reduced_popuation_data = reduced_popuation_data.groupby("Location").sum()
         reduced_popuation_data.rename(index={"Czechia": "Czech Republic"},
                                       inplace=True)
 
         best_population_data = reduced_popuation_data.loc[reduced_popuation_data.index.isin(countries_of_best)]
         best_population_data.loc[:, "PopTotal"] = pd.Series(best_population_data.loc[:, "PopTotal"] * 1000, dtype=int)
+
+        # drop all other columns except for those three
+        best_population_data = best_population_data.loc[:, ["PopMale", "PopFemale", "PopTotal"]]
+
+        # save .csv to avoid download and computational load on next run
         best_population_data.to_csv(target_filepath)
 
         return best_population_data
